@@ -70,7 +70,6 @@ export function useOCR() {
 
     try {
       const Tesseract = await loadTesseract();
-      const { createWorker } = Tesseract;
 
       let imageInput: string;
       if (typeof imageSource !== 'string') {
@@ -82,8 +81,8 @@ export function useOCR() {
       const langCode = getTesseractLang(language);
       console.log('OCR: Using language code:', langCode, 'for selection:', language);
 
-      // Create worker with timeout
-      const createWorkerPromise = createWorker(langCode, {
+      // Use Tesseract.recognize() directly - handles worker lifecycle internally
+      const recognizePromise = Tesseract.recognize(imageInput, langCode, {
         langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
         logger: (m: any) => {
           console.log('OCR progress:', m.status, Math.round(m.progress * 100));
@@ -97,25 +96,14 @@ export function useOCR() {
         },
       });
 
-      // Add 60 second timeout
+      // Add 120 second timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('OCR timeout: Language data download took too long. Try again.')), 60000);
+        setTimeout(() => reject(new Error('OCR timeout: Language data download took too long. Try again.')), 120000);
       });
 
-      const worker = await Promise.race([createWorkerPromise, timeoutPromise]);
-
-      console.log('OCR: Worker created, recognizing...');
-      
-      const recognizePromise = worker.recognize(imageInput);
-      const recognizeTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('OCR recognition timeout. Try again.')), 120000);
-      });
-      
-      const { data } = await Promise.race([recognizePromise, recognizeTimeout]);
+      const { data } = await Promise.race([recognizePromise, timeoutPromise]);
       const text = data.text;
       console.log('OCR: Extracted text length:', text.length, 'first 100 chars:', text.substring(0, 100));
-
-      await worker.terminate();
 
       setIsProcessing(false);
       setProgress(100);
