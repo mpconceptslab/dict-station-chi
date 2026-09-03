@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 
 // Use tesseract.js from CDN to avoid Google Drive sync issues
-const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
+const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
 
 let tesseractPromise: Promise<any> | null = null;
 
@@ -82,14 +82,14 @@ export function useOCR() {
       const langCode = getTesseractLang(language);
       console.log('OCR: Using language code:', langCode, 'for selection:', language);
 
-      const worker = await createWorker(langCode, 1, {
-        langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@3/',
-        logger: (m: any) => {
-          console.log('OCR progress:', m.status, m.progress);
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
+      // Create worker - Tesseract.js v5 API
+      const worker = await createWorker(langCode);
+      
+      worker.setProgress((m: any) => {
+        console.log('OCR progress:', m.status, Math.round(m.progress * 100));
+        if (m.status === 'recognizing text') {
+          setProgress(Math.round(m.progress * 100));
+        }
       });
 
       console.log('OCR: Worker created, recognizing...');
