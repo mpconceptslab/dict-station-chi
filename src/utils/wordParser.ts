@@ -125,8 +125,10 @@ function extractKeywords(text: string): string[] {
 
   if (hasChinese) {
     // For Chinese text: extract Chinese words (2+ character sequences)
-    // Keep Chinese characters, letters, numbers, apostrophes, hyphens
-    const cleaned = text.replace(/[^\u4e00-\u9fff a-zA-Z0-9'-]/g, ' ');
+    // First, remove spaces between Chinese characters (OCR often adds spaces)
+    let cleaned = text.replace(/([\u4e00-\u9fff])\s+([\u4e00-\u9fff])/g, '$1$2');
+    // Then remove non-Chinese/non-letter characters
+    cleaned = cleaned.replace(/[^\u4e00-\u9fff a-zA-Z0-9'-]/g, ' ');
     
     // Split into tokens
     const tokens = cleaned.split(/\s+/).map(w => w.trim()).filter(w => w.length > 0);
