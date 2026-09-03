@@ -16,6 +16,7 @@ export default function PreDictationPage() {
   const [paragraphText, setParagraphText] = useState('');
   const [hasParagraph, setHasParagraph] = useState(false);
   const [listName, setListName] = useState('');
+  const [voice, setVoice] = useState<string | undefined>();
   const [userText, setUserText] = useState('');
   const [started, setStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -41,6 +42,7 @@ export default function PreDictationPage() {
       return;
     }
     setListName(list.name);
+    setVoice(list.voice);
 
     // If we have stored paragraphs, use them for pre-dictation
     if (list.paragraphs && list.paragraphs.length > 0) {
@@ -63,12 +65,12 @@ export default function PreDictationPage() {
     setStarted(true);
     if (hasParagraph) {
       // Speak the full paragraph as continuous text
-      const controller = speakParagraph(paragraphText);
+      const controller = speakParagraph(paragraphText, 0.7, voice);
       controllerRef.current = controller;
       controller.start();
     } else {
       // Speak individual words with gaps
-      const controller = speakWordsSequentially(words, 0.7, 800);
+      const controller = speakWordsSequentially(words, 0.7, 800, undefined, voice);
       controllerRef.current = controller;
       controller.start();
     }

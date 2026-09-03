@@ -17,6 +17,7 @@ export default function ImportPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [detectedType, setDetectedType] = useState<'words' | 'paragraph' | 'mixed'>('words');
   const [language, setLanguage] = useState('english');
+  const [voice, setVoice] = useState('zh-CN'); // Mandarin default for Chinese
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,6 +114,7 @@ export default function ImportPage() {
       createdAt: Date.now(),
       rawText,
       language,
+      voice,
     });
 
     navigate('/word-lists');
@@ -161,6 +163,33 @@ export default function ImportPage() {
               </button>
             </div>
           </div>
+
+          {/* Voice/Dialect selector - shows when Chinese is selected */}
+          {(language === 'chinese' || language === 'chinese_trad' || language === 'english_chinese') && (
+            <div className="form-group language-selector">
+              <label>Chinese Voice / 中文聲線:</label>
+              <div className="language-options">
+                <button
+                  className={`lang-btn ${voice === 'zh-CN' ? 'active' : ''}`}
+                  onClick={() => setVoice('zh-CN')}
+                >
+                  🗣️ 普通話 (Mandarin)
+                </button>
+                <button
+                  className={`lang-btn ${voice === 'zh-HK' ? 'active' : ''}`}
+                  onClick={() => setVoice('zh-HK')}
+                >
+                  🗣️ 廣東話 (Cantonese)
+                </button>
+                <button
+                  className={`lang-btn ${voice === 'zh-TW' ? 'active' : ''}`}
+                  onClick={() => setVoice('zh-TW')}
+                >
+                  🗣️ 台灣國語 (Taiwanese)
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="upload-options">
             <button

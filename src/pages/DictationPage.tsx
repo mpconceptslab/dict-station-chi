@@ -14,6 +14,7 @@ export default function DictationPage() {
 
   const [words, setWords] = useState<string[]>([]);
   const [listName, setListName] = useState('');
+  const [voice, setVoice] = useState<string | undefined>();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [answers, setAnswers] = useState<{ word: string; answer: string; correct: boolean }[]>([]);
@@ -33,13 +34,14 @@ export default function DictationPage() {
       return;
     }
     setListName(list.name);
+    setVoice(list.voice);
     const selected = selectRandomWords(list.words, count);
     setWords(selected);
   }
 
   const speakCurrentWord = useCallback(async () => {
     if (currentIndex < words.length) {
-      await speak(words[currentIndex], 0.6);
+      await speak(words[currentIndex], 0.6, undefined, voice);
     }
   }, [currentIndex, words, speak]);
 

@@ -2,12 +2,17 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 /**
  * Detect if text is primarily Chinese
+ * Returns 'en-US', 'zh-CN', or the provided voiceOverride if Chinese detected
  */
-function detectLanguage(text: string): string {
+function detectLanguage(text: string, voiceOverride?: string): string {
   const chineseChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
   const totalChars = text.replace(/\s/g, '').length;
   if (totalChars === 0) return 'en-US';
-  return chineseChars / totalChars > 0.3 ? 'zh-CN' : 'en-US';
+  if (chineseChars / totalChars > 0.3) {
+    // If user chose a Chinese voice variant, use it; default to Mandarin
+    return voiceOverride || 'zh-CN';
+  }
+  return 'en-US';
 }
 
 /**
@@ -42,14 +47,14 @@ export function useSpeech() {
     };
   }, []);
 
-  const speak = useCallback((text: string, rate = 0.8, lang?: string): Promise<void> => {
+  const speak = useCallback((text: string, rate = 0.8, lang?: string, voiceOverride?: string): Promise<void> => {
     return new Promise((resolve) => {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
       utterance.pitch = 1;
-      utterance.lang = lang || detectLanguage(text);
+      utterance.lang = lang || detectLanguage(text, voiceOverride);
 
       utterance.onstart = () => {
         setIsSpeaking(true);
@@ -75,7 +80,7 @@ export function useSpeech() {
   }, []);
 
   const speakWordsSequentially = useCallback(
-    (words: string[], rate = 0.7, gapMs = 800, lang?: string): {
+    (words: string[], rate = 0.7, gapMs = 800, lang?: string, voiceOverride?: string): {
       start: () => void; pause: () => void; resume: () => void; stop: () => void;
       replayLast: () => void;
     } => {
@@ -114,7 +119,7 @@ export function useSpeech() {
           const utterance = new SpeechSynthesisUtterance(words[idx]);
           utterance.rate = rate;
           utterance.pitch = 1;
-          utterance.lang = lang || detectLanguage(words[idx]);
+          utterance.lang = lang || detectLanguage(words[idx], voiceOverride);
 
           utterance.onend = () => {
             lastSpokenRef.current = words[idx];
@@ -189,7 +194,7 @@ export function useSpeech() {
         const utterance = new SpeechSynthesisUtterance(last);
         utterance.rate = rate;
         utterance.pitch = 1;
-        utterance.lang = lang || detectLanguage(last);
+        utterance.lang = lang || detectLanguage(last, voiceOverride);
         window.speechSynthesis.speak(utterance);
       };
 
@@ -199,12 +204,12 @@ export function useSpeech() {
   );
 
   const speakParagraph = useCallback(
-    (text: string, rate = 0.7, lang?: string): {
+    (text: string, rate = 0.7, lang?: string, voiceOverride?: string): {
       start: () => void; pause: () => void; resume: () => void; stop: () => void;
       replayLast: () => void;
     } => {
       const sentences = splitSentences(text);
-      const detectedLang = lang || detectLanguage(text);
+      const detectedLang = lang || detectLanguage(text, voiceOverride);
       let stopped = false;
       let paused = false;
       let pausePromise: Promise<void> | null = null;

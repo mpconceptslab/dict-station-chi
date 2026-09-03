@@ -9,6 +9,7 @@ export interface WordList {
   sourceImage?: string; // base64 of the original image
   rawText?: string;     // Original OCR text for reference
   language?: string;    // 'english', 'chinese', 'chinese_trad', 'english_chinese'
+  voice?: string;       // 'zh-CN' (Mandarin), 'zh-HK' (Cantonese), 'zh-TW' (Taiwanese)
 }
 
 export interface DictationSession {
