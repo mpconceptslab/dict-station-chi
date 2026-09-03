@@ -1,7 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOCR } from '../hooks/useOCR';
-import { analyzeContent } from '../utils/wordParser';
 import { saveWordList, generateId } from '../utils/storage';
 
 export default function ImportPage() {
@@ -12,14 +11,13 @@ export default function ImportPage() {
   const [words, setWords] = useState<string[]>([]);
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [listName, setListName] = useState('');
-  const [editableWords, setEditableWords] = useState('');
-  const [editableParagraphs, setEditableParagraphs] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [detectedType, setDetectedType] = useState<'words' | 'paragraph' | 'mixed'>('words');
   const [language, setLanguage] = useState('english');
   const [voice, setVoice] = useState('zh-CN'); // Mandarin default for Chinese
+  const [selectedWords, setSelectedWords] = useState<string[]>([]); // Words selected by highlighting
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
 
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -41,22 +39,10 @@ export default function ImportPage() {
 
   function processText(text: string) {
     setRawText(text);
-    const { words: extractedWords, paragraphs: extractedParagraphs } = analyzeContent(text);
-
-    setWords(extractedWords);
-    setEditableWords(extractedWords.join('\n'));
-    setParagraphs(extractedParagraphs);
-    setEditableParagraphs(extractedParagraphs.join('\n\n'));
-
-    // Determine content type
-    if (extractedParagraphs.length > 0 && extractedWords.length > extractedParagraphs.length) {
-      setDetectedType('mixed');
-    } else if (extractedParagraphs.length > 0) {
-      setDetectedType('paragraph');
-    } else {
-      setDetectedType('words');
-    }
-
+    // Combine all text into paragraphs (merge into one block for highlighting)
+    const cleanedText = text.replace(/\r\n/g, '\n').trim();
+    const paragraphsList = cleanedText.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+    setParagraphs(paragraphsList);
     setListName(`List ${new Date().toLocaleDateString()}`);
     setStep('review');
   }
@@ -65,42 +51,51 @@ export default function ImportPage() {
     setRawText('');
     setWords([]);
     setParagraphs([]);
-    setEditableWords('');
-    setEditableParagraphs('');
-    setDetectedType('words');
+    setSelectedWords([]);
     setListName(`List ${new Date().toLocaleDateString()}`);
     setStep('review');
-  }
-
-  function updateWords(text: string) {
-    setEditableWords(text);
-    const parsed = text.split('\n').map(w => w.trim()).filter(w => w.length > 0);
-    setWords(parsed);
   }
 
   function removeWord(index: number) {
     const newWords = words.filter((_, i) => i !== index);
     setWords(newWords);
-    setEditableWords(newWords.join('\n'));
   }
 
-  function updateParagraphs(text: string) {
-    setEditableParagraphs(text);
-    const parsed = text.split(/\n\s*\n|\n/).map(p => p.trim()).filter(p => p.length > 0);
-    setParagraphs(parsed);
+  function removeSelectedWord(index: number) {
+    const newSelected = selectedWords.filter((_, i) => i !== index);
+    setSelectedWords(newSelected);
   }
 
-  function handleAnalyzeParagraphs() {
-    // Re-analyze: extract keywords from the current paragraph text
-    const { words: newWords } = analyzeContent(editableParagraphs);
-    if (newWords.length > 0) {
-      // Merge with existing words
-      const existingSet = new Set(words.map(w => w.toLowerCase()));
-      const additionalWords = newWords.filter(w => !existingSet.has(w.toLowerCase()));
-      const merged = [...words, ...additionalWords];
-      setWords(merged);
-      setEditableWords(merged.join('\n'));
+  // Handle text selection in the paragraph
+  function handleTextSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+    
+    const selectedText = selection.toString().trim();
+    if (selectedText.length > 0) {
+      // Add to selected words if not already there
+      if (!selectedWords.includes(selectedText)) {
+        setSelectedWords([...selectedWords, selectedText]);
+      }
+      // Clear selection
+      selection.removeAllRanges();
     }
+  }
+
+  // Add all selected words to the word list
+  function addSelectedWords() {
+    const newWords = [...words];
+    const existingSet = new Set(words.map(w => w.toLowerCase()));
+    
+    for (const word of selectedWords) {
+      if (!existingSet.has(word.toLowerCase())) {
+        newWords.push(word);
+        existingSet.add(word.toLowerCase());
+      }
+    }
+    
+    setWords(newWords);
+    setSelectedWords([]); // Clear selected words after adding
   }
 
   async function handleSave() {
@@ -268,30 +263,44 @@ export default function ImportPage() {
             />
           </div>
 
-          {/* Content type indicator */}
-          <div className="content-type-badge">
-            {detectedType === 'words' && '📝 Word List Detected'}
-            {detectedType === 'paragraph' && '📖 Paragraph/Story Detected'}
-            {detectedType === 'mixed' && '📝📖 Mixed Content (Words + Paragraphs)'}
+          {/* Instructions */}
+          <div className="instructions" style={{ background: '#f0f9ff', padding: '16px', borderRadius: '12px', marginBottom: '20px' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px' }}>📝 How to Select Words:</h3>
+            <p style={{ margin: 0, fontSize: '14px' }}>
+              1. <strong>Highlight text</strong> in the paragraph below by clicking and dragging<br/>
+              2. Selected words will appear in the "Selected Words" section<br/>
+              3. Click <strong>"Add to Word List"</strong> to save them for dictation<br/>
+              4. You can select words of any length (1 character or multiple characters)
+            </p>
           </div>
 
-          {/* Keywords Section */}
-          <div className="form-group">
-            <label>
-              Keywords for Dictation ({words.length} words)
-              <span className="label-hint">One word per line. These will be used for keyword dictation.</span>
-            </label>
-            <textarea
-              value={editableWords}
-              onChange={(e) => updateWords(e.target.value)}
-              rows={8}
-              placeholder="Type one word per line..."
-            />
-          </div>
+          {/* Selected Words Section */}
+          {selectedWords.length > 0 && (
+            <div className="form-group">
+              <label>
+                Selected Words ({selectedWords.length})
+                <span className="label-hint">Words you've highlighted from the text</span>
+              </label>
+              <div className="word-tags" style={{ marginBottom: '12px' }}>
+                {selectedWords.map((word, i) => (
+                  <span key={i} className="word-tag removable" onClick={() => removeSelectedWord(i)} title="Tap to remove">
+                    {word} <span className="remove-x">&times;</span>
+                  </span>
+                ))}
+              </div>
+              <button className="btn btn-primary" onClick={addSelectedWords}>
+                Add to Word List ({selectedWords.length} words)
+              </button>
+            </div>
+          )}
 
+          {/* Word List Section */}
           {words.length > 0 && (
-            <div className="word-preview">
-              <h3>Keywords Preview: <span className="hint">(tap a word to remove it)</span></h3>
+            <div className="form-group">
+              <label>
+                Word List for Dictation ({words.length} words)
+                <span className="label-hint">Tap a word to remove it</span>
+              </label>
               <div className="word-tags">
                 {words.map((word, i) => (
                   <span key={i} className="word-tag removable" onClick={() => removeWord(i)} title="Tap to remove">
@@ -302,39 +311,34 @@ export default function ImportPage() {
             </div>
           )}
 
-          {/* Paragraphs Section */}
-          <div className="form-group">
-            <label>
-              Paragraphs for Full Dictation ({paragraphs.length} blocks)
-              <span className="label-hint">Full text for paragraph dictation practice. Separate paragraphs with blank lines.</span>
-            </label>
-            <textarea
-              value={editableParagraphs}
-              onChange={(e) => updateParagraphs(e.target.value)}
-              rows={6}
-              placeholder="Paste or type paragraphs here for full dictation practice..."
-            />
-          </div>
-
+          {/* Paragraph Text for Highlighting */}
           {paragraphs.length > 0 && (
-            <div className="paragraph-preview">
-              <h3>Paragraph Preview:</h3>
-              {paragraphs.map((p, i) => (
-                <div key={i} className="paragraph-block">
-                  <span className="paragraph-number">Paragraph {i + 1}:</span>
-                  <p>{p}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Extract keywords from paragraphs button */}
-          {paragraphs.length > 0 && (
-            <div className="extract-keywords-section">
-              <button className="btn btn-outline" onClick={handleAnalyzeParagraphs}>
-                Extract Keywords from Paragraphs
-              </button>
-              <p className="hint">This will find important words in the paragraphs and add them to the keyword list.</p>
+            <div className="form-group">
+              <label>
+                Paragraph Text
+                <span className="label-hint">Click and drag to highlight words you want to study</span>
+              </label>
+              <div
+                ref={textContainerRef}
+                className="paragraph-highlight-area"
+                onMouseUp={handleTextSelection}
+                onTouchEnd={handleTextSelection}
+                style={{
+                  background: '#fff',
+                  border: '2px solid #e0e0e0',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  fontSize: '18px',
+                  lineHeight: '1.8',
+                  minHeight: '200px',
+                  userSelect: 'text',
+                  cursor: 'text',
+                }}
+              >
+                {paragraphs.map((p, i) => (
+                  <p key={i} style={{ marginBottom: '16px' }}>{p}</p>
+                ))}
+              </div>
             </div>
           )}
 
@@ -353,7 +357,7 @@ export default function ImportPage() {
             <button
               className="btn btn-primary btn-large"
               onClick={handleSave}
-              disabled={!hasContent}
+              disabled={words.length === 0 && paragraphs.length === 0}
             >
               Save ({words.length} keywords{paragraphs.length > 0 ? `, ${paragraphs.length} paragraphs` : ''})
             </button>
