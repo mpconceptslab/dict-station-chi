@@ -82,18 +82,36 @@ export function useOCR() {
       const langCode = getTesseractLang(language);
       console.log('OCR: Using language code:', langCode, 'for selection:', language);
 
-      // Create worker - Tesseract.js v5 API
-      const worker = await createWorker(langCode, {
+      // Create worker with timeout
+      const createWorkerPromise = createWorker(langCode, {
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
         logger: (m: any) => {
           console.log('OCR progress:', m.status, Math.round(m.progress * 100));
-          if (m.status === 'recognizing text') {
+          if (m.status === 'loading tesseract core' || 
+              m.status === 'initializing tesseract' ||
+              m.status === 'loading language traineddata' ||
+              m.status === 'initializing api' ||
+              m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100));
           }
         },
       });
 
+      // Add 60 second timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('OCR timeout: Language data download took too long. Try again.')), 60000);
+      });
+
+      const worker = await Promise.race([createWorkerPromise, timeoutPromise]);
+
       console.log('OCR: Worker created, recognizing...');
-      const { data } = await worker.recognize(imageInput);
+      
+      const recognizePromise = worker.recognize(imageInput);
+      const recognizeTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('OCR recognition timeout. Try again.')), 120000);
+      });
+      
+      const { data } = await Promise.race([recognizePromise, recognizeTimeout]);
       const text = data.text;
       console.log('OCR: Extracted text length:', text.length, 'first 100 chars:', text.substring(0, 100));
 
