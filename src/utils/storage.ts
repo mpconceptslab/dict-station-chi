@@ -8,6 +8,7 @@ export interface WordList {
   createdAt: number;
   sourceImage?: string; // base64 of the original image
   rawText?: string;     // Original OCR text for reference
+  language?: string;    // 'english', 'chinese', 'chinese_trad', 'english_chinese'
 }
 
 export interface DictationSession {

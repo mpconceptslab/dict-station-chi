@@ -756,8 +756,9 @@ textarea {
 
 .control-buttons {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .writing-area {
@@ -1126,4 +1127,62 @@ textarea {
   margin-bottom: 6px;
   padding-left: 8px;
   border-left: 3px solid var(--primary-light);
+}
+
+/* === Language Selector === */
+.language-selector {
+  text-align: center;
+}
+
+.language-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.lang-btn {
+  padding: 8px 14px;
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-card);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text);
+}
+
+.lang-btn:hover {
+  border-color: var(--primary-light);
+  background: var(--bg);
+}
+
+.lang-btn.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* === Accent Button (Replay) === */
+.btn-accent {
+  background: var(--warning);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-accent:hover {
+  background: #e68900;
+  transform: scale(1.02);
+}
+
+.btn-accent:active {
+  transform: scale(0.98);
 }

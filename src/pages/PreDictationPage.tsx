@@ -24,7 +24,10 @@ export default function PreDictationPage() {
     paragraph: string;
   } | null>(null);
 
-  const controllerRef = useRef<{ start: () => void; pause: () => void; resume: () => void; stop: () => void } | null>(null);
+  const controllerRef = useRef<{
+    start: () => void; pause: () => void; resume: () => void; stop: () => void;
+    replayLast: () => void;
+  } | null>(null);
 
   useEffect(() => {
     loadWords();
@@ -77,6 +80,10 @@ export default function PreDictationPage() {
 
   function handleResume() {
     controllerRef.current?.resume();
+  }
+
+  function handleReplay() {
+    controllerRef.current?.replayLast();
   }
 
   function handleSubmit() {
@@ -137,6 +144,7 @@ export default function PreDictationPage() {
                   <li>Press <strong>Start</strong> to begin</li>
                   <li>Listen to the paragraph being spoken naturally</li>
                   <li>Press <strong>Pause</strong> when you need time to write</li>
+                  <li>Press <strong>Replay Last</strong> to hear the last part again</li>
                   <li>Press <strong>Resume</strong> to continue listening</li>
                   <li>Write everything you hear in the text box</li>
                   <li>Press <strong>Submit</strong> when you're done</li>
@@ -152,6 +160,7 @@ export default function PreDictationPage() {
                   <li>Press <strong>Start</strong> to begin</li>
                   <li>Listen to the words being spoken</li>
                   <li>Press <strong>Pause</strong> when you need time to write</li>
+                  <li>Press <strong>Replay Last</strong> to hear the last part again</li>
                   <li>Press <strong>Resume</strong> to continue listening</li>
                   <li>Write everything you hear in the text box</li>
                   <li>Press <strong>Submit</strong> when you're done</li>
@@ -221,19 +230,24 @@ export default function PreDictationPage() {
         <div className="control-buttons">
           {!isSpeaking && !isPaused ? (
             <button className="btn btn-primary" onClick={handleResume}>
-              Resume
+              ▶ Resume
             </button>
           ) : isPaused ? (
-            <button className="btn btn-primary" onClick={handleResume}>
-              Resume
-            </button>
+            <>
+              <button className="btn btn-primary" onClick={handleResume}>
+                ▶ Resume
+              </button>
+              <button className="btn btn-accent" onClick={handleReplay}>
+                🔁 Replay Last
+              </button>
+            </>
           ) : (
             <button className="btn btn-warning" onClick={handlePause}>
-              Pause
+              ⏸ Pause
             </button>
           )}
           <button className="btn btn-outline" onClick={() => controllerRef.current?.stop()}>
-            Stop Speaking
+            ⏹ Stop
           </button>
         </div>
       </div>

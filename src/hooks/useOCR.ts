@@ -8,7 +8,6 @@ let tesseractPromise: Promise<any> | null = null;
 function loadTesseract(): Promise<any> {
   if (!tesseractPromise) {
     tesseractPromise = new Promise((resolve, reject) => {
-      // Check if already loaded
       if ((window as any).Tesseract) {
         resolve((window as any).Tesseract);
         return;
@@ -29,9 +28,6 @@ function loadTesseract(): Promise<any> {
   return tesseractPromise;
 }
 
-/**
- * Convert a File/Blob to a data URL for Tesseract compatibility
- */
 function fileToDataUrl(file: File | Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -41,12 +37,33 @@ function fileToDataUrl(file: File | Blob): Promise<string> {
   });
 }
 
+/**
+ * Map language selection to Tesseract language codes
+ * 'eng' = English
+ * 'chi_sim' = Simplified Chinese
+ * 'chi_tra' = Traditional Chinese
+ * 'eng+chi_sim' = English + Simplified Chinese (multi-language)
+ * 'eng+chi_tra' = English + Traditional Chinese (multi-language)
+ */
+function getTesseractLang(lang: string): string {
+  switch (lang) {
+    case 'chinese': return 'chi_sim';
+    case 'chinese_trad': return 'chi_tra';
+    case 'english_chinese': return 'eng+chi_sim';
+    case 'english_chinese_trad': return 'eng+chi_tra';
+    default: return 'eng';
+  }
+}
+
 export function useOCR() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const recognizeText = useCallback(async (imageSource: string | File): Promise<string> => {
+  const recognizeText = useCallback(async (
+    imageSource: string | File,
+    language: string = 'english'
+  ): Promise<string> => {
     setIsProcessing(true);
     setProgress(0);
     setError(null);
@@ -55,7 +72,6 @@ export function useOCR() {
       const Tesseract = await loadTesseract();
       const { createWorker } = Tesseract;
 
-      // Convert File to data URL for reliable cross-browser support
       let imageInput: string;
       if (typeof imageSource !== 'string') {
         imageInput = await fileToDataUrl(imageSource);
@@ -63,8 +79,9 @@ export function useOCR() {
         imageInput = imageSource;
       }
 
-      // Create worker with logger for progress tracking
-      const worker = await createWorker('eng', 1, {
+      const langCode = getTesseractLang(language);
+
+      const worker = await createWorker(langCode, 1, {
         logger: (m: any) => {
           if (m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100));
@@ -72,11 +89,9 @@ export function useOCR() {
         },
       });
 
-      // Run OCR
       const { data } = await worker.recognize(imageInput);
       const text = data.text;
 
-      // Clean up worker
       await worker.terminate();
 
       setIsProcessing(false);

@@ -1,27 +1,55 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
+/**
+ * Detect if text is primarily Chinese
+ */
+function detectLanguage(text: string): string {
+  const chineseChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  const totalChars = text.replace(/\s/g, '').length;
+  if (totalChars === 0) return 'en-US';
+  return chineseChars / totalChars > 0.3 ? 'zh-CN' : 'en-US';
+}
+
+/**
+ * Split text into sentences - handles both English and Chinese
+ */
+function splitSentences(text: string): string[] {
+  // Try English sentence splitting first
+  const enSentences = text.match(/[^.!?]+[.!?]?\s*/g);
+  if (enSentences && enSentences.length > 1) return enSentences;
+
+  // Try Chinese sentence splitting (。！？；)
+  const zhSentences = text.match(/[^。！？；]+[。！？；]?\s*/g);
+  if (zhSentences && zhSentences.length > 1) return zhSentences;
+
+  // Fall back: split by commas for Chinese, or return as-is
+  const commaSplit = text.match(/[^，,]+[，,]?\s*/g);
+  if (commaSplit && commaSplit.length > 1) return commaSplit;
+
+  return [text];
+}
+
 export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const queueRef = useRef<SpeechSynthesisUtterance[]>([]);
   const currentIndexRef = useRef(0);
+  const lastSpokenRef = useRef<string>('');
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       window.speechSynthesis.cancel();
     };
   }, []);
 
-  const speak = useCallback((text: string, rate = 0.8): Promise<void> => {
+  const speak = useCallback((text: string, rate = 0.8, lang?: string): Promise<void> => {
     return new Promise((resolve) => {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = rate;
       utterance.pitch = 1;
-      utterance.lang = 'en-US';
+      utterance.lang = lang || detectLanguage(text);
 
       utterance.onstart = () => {
         setIsSpeaking(true);
@@ -31,6 +59,7 @@ export function useSpeech() {
       utterance.onend = () => {
         setIsSpeaking(false);
         setIsPaused(false);
+        lastSpokenRef.current = text;
         resolve();
       };
 
@@ -46,14 +75,16 @@ export function useSpeech() {
   }, []);
 
   const speakWordsSequentially = useCallback(
-    (words: string[], rate = 0.7, gapMs = 800): { start: () => void; pause: () => void; resume: () => void; stop: () => void } => {
+    (words: string[], rate = 0.7, gapMs = 800, lang?: string): {
+      start: () => void; pause: () => void; resume: () => void; stop: () => void;
+      replayLast: () => void;
+    } => {
       let stopped = false;
       let paused = false;
       let currentIdx = 0;
       let pausePromise: Promise<void> | null = null;
       let pauseResolver: (() => void) | null = null;
 
-      // Create a pause gate - resolves when not paused
       const ensureNotPaused = (): Promise<void> => {
         if (!paused) return Promise.resolve();
         if (!pausePromise) {
@@ -64,39 +95,31 @@ export function useSpeech() {
         return pausePromise;
       };
 
-      // Pause-aware delay using short intervals instead of setTimeout
       const wait = (ms: number): Promise<void> => {
         return new Promise((resolve) => {
           let elapsed = 0;
           const interval = setInterval(() => {
-            if (stopped) {
-              clearInterval(interval);
-              resolve();
-              return;
-            }
-            if (paused) return; // don't count time while paused
+            if (stopped) { clearInterval(interval); resolve(); return; }
+            if (paused) return;
             elapsed += 50;
-            if (elapsed >= ms) {
-              clearInterval(interval);
-              resolve();
-            }
+            if (elapsed >= ms) { clearInterval(interval); resolve(); }
           }, 50);
         });
       };
 
       const speakWord = (idx: number): Promise<void> => {
         return new Promise((resolve) => {
-          if (idx >= words.length || stopped) {
-            resolve();
-            return;
-          }
+          if (idx >= words.length || stopped) { resolve(); return; }
 
           const utterance = new SpeechSynthesisUtterance(words[idx]);
           utterance.rate = rate;
           utterance.pitch = 1;
-          utterance.lang = 'en-US';
+          utterance.lang = lang || detectLanguage(words[idx]);
 
-          utterance.onend = () => resolve();
+          utterance.onend = () => {
+            lastSpokenRef.current = words[idx];
+            resolve();
+          };
           utterance.onerror = () => resolve();
 
           currentIndexRef.current = idx;
@@ -139,7 +162,6 @@ export function useSpeech() {
         paused = false;
         setIsPaused(false);
         window.speechSynthesis.resume();
-        // Release the pause gate so the loop continues
         if (pauseResolver) {
           pauseResolver();
           pauseResolver = null;
@@ -160,15 +182,29 @@ export function useSpeech() {
         }
       };
 
-      return { start, pause, resume, stop };
+      const replayLast = () => {
+        const last = lastSpokenRef.current;
+        if (!last) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(last);
+        utterance.rate = rate;
+        utterance.pitch = 1;
+        utterance.lang = lang || detectLanguage(last);
+        window.speechSynthesis.speak(utterance);
+      };
+
+      return { start, pause, resume, stop, replayLast };
     },
     []
   );
 
   const speakParagraph = useCallback(
-    (text: string, rate = 0.7): { start: () => void; pause: () => void; resume: () => void; stop: () => void } => {
-      // Split into sentences for natural speaking
-      const sentences = text.match(/[^.!?]+[.!?]?\s*/g) || [text];
+    (text: string, rate = 0.7, lang?: string): {
+      start: () => void; pause: () => void; resume: () => void; stop: () => void;
+      replayLast: () => void;
+    } => {
+      const sentences = splitSentences(text);
+      const detectedLang = lang || detectLanguage(text);
       let stopped = false;
       let paused = false;
       let pausePromise: Promise<void> | null = null;
@@ -190,8 +226,11 @@ export function useSpeech() {
           const utterance = new SpeechSynthesisUtterance(sentence.trim());
           utterance.rate = rate;
           utterance.pitch = 1;
-          utterance.lang = 'en-US';
-          utterance.onend = () => resolve();
+          utterance.lang = detectedLang;
+          utterance.onend = () => {
+            lastSpokenRef.current = sentence.trim();
+            resolve();
+          };
           utterance.onerror = () => resolve();
           utteranceRef.current = utterance;
           window.speechSynthesis.speak(utterance);
@@ -244,6 +283,16 @@ export function useSpeech() {
             pauseResolver = null;
             pausePromise = null;
           }
+        },
+        replayLast: () => {
+          const last = lastSpokenRef.current;
+          if (!last) return;
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(last);
+          utterance.rate = rate;
+          utterance.pitch = 1;
+          utterance.lang = detectedLang;
+          window.speechSynthesis.speak(utterance);
         },
       };
     },

@@ -16,6 +16,7 @@ export default function ImportPage() {
   const [editableParagraphs, setEditableParagraphs] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [detectedType, setDetectedType] = useState<'words' | 'paragraph' | 'mixed'>('words');
+  const [language, setLanguage] = useState('english');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,7 +29,7 @@ export default function ImportPage() {
     setImagePreview(previewUrl);
 
     try {
-      const text = await recognizeText(file);
+      const text = await recognizeText(file, language);
       processText(text);
     } catch (err) {
       console.error('OCR failed:', err);
@@ -111,6 +112,7 @@ export default function ImportPage() {
       paragraphs,
       createdAt: Date.now(),
       rawText,
+      language,
     });
 
     navigate('/word-lists');
@@ -129,6 +131,36 @@ export default function ImportPage() {
             Take a photo or upload any study material - word lists, paragraphs, stories, or anything!
             The app will understand the content and prepare it for both keyword and paragraph dictation.
           </p>
+
+          <div className="form-group language-selector">
+            <label>Language:</label>
+            <div className="language-options">
+              <button
+                className={`lang-btn ${language === 'english' ? 'active' : ''}`}
+                onClick={() => setLanguage('english')}
+              >
+                🇬🇧 English
+              </button>
+              <button
+                className={`lang-btn ${language === 'chinese' ? 'active' : ''}`}
+                onClick={() => setLanguage('chinese')}
+              >
+                🇨🇳 简体中文
+              </button>
+              <button
+                className={`lang-btn ${language === 'chinese_trad' ? 'active' : ''}`}
+                onClick={() => setLanguage('chinese_trad')}
+              >
+                🇹🇼 繁體中文
+              </button>
+              <button
+                className={`lang-btn ${language === 'english_chinese' ? 'active' : ''}`}
+                onClick={() => setLanguage('english_chinese')}
+              >
+                🇬🇧🇨🇳 Eng + 简中
+              </button>
+            </div>
+          </div>
 
           <div className="upload-options">
             <button
