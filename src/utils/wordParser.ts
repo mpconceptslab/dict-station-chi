@@ -86,6 +86,7 @@ export function analyzeContent(rawText: string): { words: string[]; paragraphs: 
 /**
  * Extract meaningful keywords from a sentence/paragraph.
  * Filters out common stop words, short words, and punctuation.
+ * Handles both English and Chinese text.
  */
 function extractKeywords(text: string): string[] {
   const stopWords = new Set([
@@ -119,7 +120,40 @@ function extractKeywords(text: string): string[] {
     'there', 'here', 'now', 'way', 'use', 'used', 'try', 'tried', 'put', 'run', 'set',
   ]);
 
-  // Clean and split into words
+  // Check if text contains Chinese characters
+  const hasChinese = /[\u4e00-\u9fff]/.test(text);
+
+  if (hasChinese) {
+    // For Chinese text: extract Chinese words (2+ character sequences)
+    // Keep Chinese characters, letters, numbers, apostrophes, hyphens
+    const cleaned = text.replace(/[^\u4e00-\u9fff a-zA-Z0-9'-]/g, ' ');
+    
+    // Split into tokens
+    const tokens = cleaned.split(/\s+/).map(w => w.trim()).filter(w => w.length > 0);
+    
+    // Extract Chinese keywords (2+ character sequences)
+    const chineseWords: string[] = [];
+    for (const token of tokens) {
+      // Check if it's a Chinese word
+      if (/[\u4e00-\u9fff]/.test(token)) {
+        // Extract 2+ character Chinese sequences
+        const matches = token.match(/[\u4e00-\u9fff]{2,}/g);
+        if (matches) {
+          chineseWords.push(...matches);
+        }
+      } else {
+        // English word - apply normal filtering
+        if (token.length >= 3 && !stopWords.has(token.toLowerCase())) {
+          chineseWords.push(token);
+        }
+      }
+    }
+    
+    // Deduplicate
+    return [...new Set(chineseWords)];
+  }
+
+  // For English text: original logic
   const words = text
     .replace(/[^a-zA-Z\s'-]/g, ' ')  // keep letters, apostrophes, hyphens
     .split(/\s+/)
