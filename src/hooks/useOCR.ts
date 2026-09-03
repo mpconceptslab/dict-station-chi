@@ -83,13 +83,13 @@ export function useOCR() {
       console.log('OCR: Using language code:', langCode, 'for selection:', language);
 
       // Create worker - Tesseract.js v5 API
-      const worker = await createWorker(langCode);
-      
-      worker.setProgress((m: any) => {
-        console.log('OCR progress:', m.status, Math.round(m.progress * 100));
-        if (m.status === 'recognizing text') {
-          setProgress(Math.round(m.progress * 100));
-        }
+      const worker = await createWorker(langCode, {
+        logger: (m: any) => {
+          console.log('OCR progress:', m.status, Math.round(m.progress * 100));
+          if (m.status === 'recognizing text') {
+            setProgress(Math.round(m.progress * 100));
+          }
+        },
       });
 
       console.log('OCR: Worker created, recognizing...');
