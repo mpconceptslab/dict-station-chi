@@ -80,17 +80,22 @@ export function useOCR() {
       }
 
       const langCode = getTesseractLang(language);
+      console.log('OCR: Using language code:', langCode, 'for selection:', language);
 
       const worker = await createWorker(langCode, 1, {
+        langPath: 'https://cdn.jsdelivr.net/npm/tesseract.js-data@3/',
         logger: (m: any) => {
+          console.log('OCR progress:', m.status, m.progress);
           if (m.status === 'recognizing text') {
             setProgress(Math.round(m.progress * 100));
           }
         },
       });
 
+      console.log('OCR: Worker created, recognizing...');
       const { data } = await worker.recognize(imageInput);
       const text = data.text;
+      console.log('OCR: Extracted text length:', text.length, 'first 100 chars:', text.substring(0, 100));
 
       await worker.terminate();
 
