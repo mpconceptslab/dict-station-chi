@@ -537,7 +537,7 @@ import { addBonusScans, addBonusChecks } from './limits';
 export function redeemPromoCode(code: string): { success: boolean; credits: number; message: string } {
   const result = validatePromoCode(code);
   if (result.valid) {
-    const newTotal = addCredits(result.credits);
+    addCredits(result.credits);
     // Also add bonus scans and checks (1 scan per credit, 1 check per 4 credits)
     addBonusScans(result.credits);
     addBonusChecks(Math.max(1, Math.floor(result.credits / 4)));
