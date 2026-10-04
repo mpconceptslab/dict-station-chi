@@ -305,7 +305,7 @@ export default function RecordsPage() {
                         </button>
                       )}
                       {hasWrong && (
-                        <button className="btn btn-secondary" onClick={() => navigate(`/correction/${session.id}`)}>
+                        <button className="btn btn-secondary" onClick={() => navigate(prog?.completed ? `/correction-summary/${session.id}` : `/correction/${session.id}`)}>
                           <span className="ico">✏️</span> {prog?.completed ? t('records.viewCorrection') : t('records.goCorrection')}
                         </button>
                       )}

@@ -14,6 +14,7 @@ import DictationPage from './pages/DictationPage';
 import PreDictationPage from './pages/PreDictationPage';
 import MarkingPage from './pages/MarkingPage';
 import CorrectionPage from './pages/CorrectionPage';
+import CorrectionSummaryPage from './pages/CorrectionSummaryPage';
 import RevisionPage from './pages/RevisionPage';
 import SyllabusPage from './pages/SyllabusPage';
 import WordListDetailPage from './pages/WordListDetailPage';
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/pre-dictation/:listId" element={<ProtectedRoute><PreDictationPage /></ProtectedRoute>} />
       <Route path="/marking/:sessionId" element={<ProtectedRoute><MarkingPage /></ProtectedRoute>} />
       <Route path="/correction/:sessionId" element={<ProtectedRoute><CorrectionPage /></ProtectedRoute>} />
+      <Route path="/correction-summary/:sessionId" element={<ProtectedRoute><CorrectionSummaryPage /></ProtectedRoute>} />
       <Route path="/revision/:listId" element={<ProtectedRoute><RevisionPage /></ProtectedRoute>} />
       <Route path="/syllabus" element={<ProtectedRoute><SyllabusPage /></ProtectedRoute>} />
       <Route path="/syllabus/:listId" element={<ProtectedRoute><WordListDetailPage /></ProtectedRoute>} />
