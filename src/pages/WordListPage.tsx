@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllWordLists, deleteWordList, type WordList } from '../utils/storage';
+import TopNavBar from '../components/TopNavBar';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { usePrefs } from '../context/PrefsContext';
 
 export default function WordListPage() {
   const navigate = useNavigate();
+  const { t } = usePrefs();
   const [wordLists, setWordLists] = useState<WordList[]>([]);
   const [expandedList, setExpandedList] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadLists();
@@ -17,22 +22,21 @@ export default function WordListPage() {
   }
 
   async function handleDelete(id: string) {
-    if (confirm('Delete this word list?')) {
-      await deleteWordList(id);
-      loadLists();
-    }
+    await deleteWordList(id);
+    setPendingDelete(null);
+    loadLists();
   }
 
   return (
     <div className="page word-list-page">
-      <button className="back-btn" onClick={() => navigate('/')}>Home</button>
-      <h1>My Word Lists</h1>
+      <TopNavBar />
+      <h1>{t('wordlist.title')}</h1>
 
       {wordLists.length === 0 ? (
         <div className="empty-state">
-          <p>No word lists yet.</p>
+          <p>{t('wordlist.empty')}</p>
           <button className="btn btn-primary" onClick={() => navigate('/import')}>
-            Import Words
+            {t('wordlist.addNew')}
           </button>
         </div>
       ) : (
@@ -45,15 +49,15 @@ export default function WordListPage() {
               >
                 <div>
                   <h3>{list.name}</h3>
-                  <span className="word-count">{list.words.length} words</span>
+                  <span className="word-count">{t('wordlist.wordCount', { n: list.words.length })}</span>
                   {list.paragraphs && list.paragraphs.length > 0 && (
-                    <span className="paragraph-count">{list.paragraphs.length} paragraph{list.paragraphs.length > 1 ? 's' : ''}</span>
+                    <span className="paragraph-count">{t('wordlist.paragraphCount', { n: list.paragraphs.length })}</span>
                   )}
                   <span className="date">
                     {new Date(list.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <span className="expand-icon">{expandedList === list.id ? '▲' : '▼'}</span>
+                <span className="expand-icon">{expandedList === list.id ? <span className="ico" data-word={t('wordlist.collapse')}>▲</span> : <span className="ico" data-word={t('wordlist.expand')}>▼</span>}</span>
               </div>
 
               {expandedList === list.id && (
@@ -65,7 +69,7 @@ export default function WordListPage() {
                   </div>
                   {list.paragraphs && list.paragraphs.length > 0 && (
                     <div className="paragraphs-preview">
-                      <h4>Paragraphs:</h4>
+                      <h4>{t('wordlist.paragraphsHeading')}</h4>
                       {list.paragraphs.map((p, i) => (
                         <p key={i} className="paragraph-snippet">{p.substring(0, 100)}{p.length > 100 ? '...' : ''}</p>
                       ))}
@@ -76,19 +80,19 @@ export default function WordListPage() {
                       className="btn btn-primary"
                       onClick={() => navigate(`/dictation/${list.id}?count=${Math.min(5, list.words.length)}`)}
                     >
-                      Start Dictation
+                      {t('wordlist.startDictation')}
                     </button>
                     <button
                       className="btn btn-secondary"
                       onClick={() => navigate(`/pre-dictation/${list.id}?count=${Math.min(5, list.words.length)}`)}
                     >
-                      Paragraph Mode
+                      {t('wordlist.paragraphMode')}
                     </button>
                     <button
                       className="btn btn-danger"
-                      onClick={() => handleDelete(list.id)}
+                      onClick={() => setPendingDelete(list.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -96,6 +100,17 @@ export default function WordListPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={t('wordlist.deleteTitle')}
+          message={t('wordlist.deleteMessage')}
+          confirmLabel={t('common.delete')}
+          danger
+          onConfirm={() => handleDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </div>
   );

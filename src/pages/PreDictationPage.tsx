@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSpeech } from '../hooks/useSpeech';
-import { getWordList, saveSession, saveCorrection, generateId } from '../utils/storage';
+import { getWordList, saveSession, saveCorrection, generateId, markWordsAsStudied, getVoiceSpeed } from '../utils/storage';
 import { selectRandomWords, wordsToParagraph } from '../utils/wordParser';
 import { compareText } from '../utils/textComparison';
+import TopNavBar from '../components/TopNavBar';
+import SpeedButton from '../components/SpeedButton';
+import { usePrefs } from '../context/PrefsContext';
 
 export default function PreDictationPage() {
   const navigate = useNavigate();
+  const { t } = usePrefs();
   const { listId } = useParams<{ listId: string }>();
   const [searchParams] = useSearchParams();
   const count = Number(searchParams.get('count') || 5);
+  const mode = searchParams.get('mode') || '';
+  const pageTitle = mode === 'paragraphs' ? t('pre.titleWriteParagraph') : t('pre.titleParagraphDictation');
   const { speakWordsSequentially, speakParagraph, isSpeaking, isPaused } = useSpeech();
 
   const [words, setWords] = useState<string[]>([]);
@@ -17,9 +23,12 @@ export default function PreDictationPage() {
   const [hasParagraph, setHasParagraph] = useState(false);
   const [listName, setListName] = useState('');
   const [voice, setVoice] = useState<string | undefined>();
+  const [readingLang, setReadingLang] = useState<string>('');
   const [userText, setUserText] = useState('');
   const [started, setStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(true);
+  const [showReview, setShowReview] = useState(false);
   const [results, setResults] = useState<{
     comparison: ReturnType<typeof compareText>;
     paragraph: string;
@@ -30,30 +39,83 @@ export default function PreDictationPage() {
     replayLast: () => void;
   } | null>(null);
 
+  const previewControllerRef = useRef<{
+    start: () => void; pause: () => void; resume: () => void; stop: () => void;
+    replayLast: () => void;
+  } | null>(null);
+
   useEffect(() => {
     loadWords();
   }, [listId]);
+
+  // For paragraph mode, skip review dialog and go straight to dictation once content is loaded
+  useEffect(() => {
+    if (mode === 'paragraphs' && words.length > 0 && !started) {
+      setShowReviewDialog(false);
+      setShowReview(false);
+      setStarted(true);
+      const lang = readingLang || voice;
+      if (hasParagraph) {
+        const controller = speakParagraph(paragraphText, getVoiceSpeed(), lang);
+        controllerRef.current = controller;
+        controller.start();
+      } else {
+        const controller = speakWordsSequentially(words, getVoiceSpeed(), 800, lang);
+        controllerRef.current = controller;
+        controller.start();
+      }
+    }
+  }, [mode, words.length]);
+
+  // Set a sensible default reading language once content is loaded.
+  useEffect(() => {
+    const sample = `${paragraphText} ${words.join(' ')}`;
+    if (!sample.trim()) return;
+    const hChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(sample);
+    const hEnglish = /[a-zA-Z]/.test(sample);
+    setReadingLang(prev => {
+      if (prev) return prev;
+      if (hEnglish && !hChinese) return 'en-US';
+      if (voice === 'zh-CN') return 'zh-CN';
+      return 'zh-HK';
+    });
+  }, [words, paragraphText, voice]);
 
   async function loadWords() {
     if (!listId) return;
     const list = await getWordList(listId);
     if (!list) {
-      navigate('/');
+      navigate('/home');
       return;
     }
     setListName(list.name);
     setVoice(list.voice);
 
-    // If we have stored paragraphs, use them for pre-dictation
+    // Check if specific paragraphs were passed via URL
+    const paragraphsParam = searchParams.get('paragraphs');
+    if (paragraphsParam) {
+      try {
+        const passedParagraphs: string[] = JSON.parse(decodeURIComponent(paragraphsParam));
+        if (passedParagraphs.length > 0) {
+          const fullParagraph = passedParagraphs.join(' ');
+          setParagraphText(fullParagraph);
+          setHasParagraph(true);
+          const paraWords = fullParagraph.split(/\s+/).filter(w => w.length > 0);
+          setWords(paraWords);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse paragraphs parameter:', e);
+      }
+    }
+
     if (list.paragraphs && list.paragraphs.length > 0) {
       const fullParagraph = list.paragraphs.join(' ');
       setParagraphText(fullParagraph);
       setHasParagraph(true);
-      // Extract words from the paragraph for comparison later
       const paraWords = fullParagraph.split(/\s+/).filter(w => w.length > 0);
       setWords(paraWords);
     } else {
-      // Fall back to joining word list
       const selected = selectRandomWords(list.words, count);
       setWords(selected);
       setParagraphText(wordsToParagraph(selected));
@@ -61,16 +123,38 @@ export default function PreDictationPage() {
     }
   }
 
-  function handleStart() {
+  function handleStartWithReview() {
+    setShowReviewDialog(false);
+    setShowReview(true);
+  }
+
+  function handleStartDirect() {
+    setShowReviewDialog(false);
+    setShowReview(false);
     setStarted(true);
+    const lang = readingLang || voice;
     if (hasParagraph) {
-      // Speak the full paragraph as continuous text
-      const controller = speakParagraph(paragraphText, 0.7, voice);
+      const controller = speakParagraph(paragraphText, getVoiceSpeed(), lang);
       controllerRef.current = controller;
       controller.start();
     } else {
-      // Speak individual words with gaps
-      const controller = speakWordsSequentially(words, 0.7, 800, undefined, voice);
+      const controller = speakWordsSequentially(words, getVoiceSpeed(), 800, lang);
+      controllerRef.current = controller;
+      controller.start();
+    }
+  }
+
+  function handleStartAfterReview() {
+    previewControllerRef.current?.stop();
+    setShowReview(false);
+    setStarted(true);
+    const lang = readingLang || voice;
+    if (hasParagraph) {
+      const controller = speakParagraph(paragraphText, getVoiceSpeed(), lang);
+      controllerRef.current = controller;
+      controller.start();
+    } else {
+      const controller = speakWordsSequentially(words, getVoiceSpeed(), 800, lang);
       controllerRef.current = controller;
       controller.start();
     }
@@ -88,6 +172,16 @@ export default function PreDictationPage() {
     controllerRef.current?.replayLast();
   }
 
+  function handlePreviewRead() {
+    previewControllerRef.current?.stop();
+    const lang = readingLang || voice;
+    const controller = hasParagraph
+      ? speakParagraph(paragraphText, getVoiceSpeed(), lang)
+      : speakWordsSequentially(words, getVoiceSpeed(), 800, lang);
+    previewControllerRef.current = controller;
+    controller.start();
+  }
+
   function handleSubmit() {
     controllerRef.current?.stop();
     setSubmitted(true);
@@ -95,7 +189,6 @@ export default function PreDictationPage() {
     const comparison = compareText(userText, paragraphText);
     setResults({ comparison, paragraph: paragraphText });
 
-    // Save session
     const wrongIndices = comparison.results
       .map((r, i) => r.correct ? -1 : i)
       .filter(i => i >= 0);
@@ -115,6 +208,11 @@ export default function PreDictationPage() {
     };
     saveSession(session);
 
+    // Mark words as studied
+    if (listId) {
+      markWordsAsStudied(listId, words);
+    }
+
     if (wrongIndices.length > 0) {
       const correction = {
         id: generateId(),
@@ -129,49 +227,91 @@ export default function PreDictationPage() {
     }
   }
 
-  if (!started && words.length > 0) {
+  // Determine which reading-language options apply to the content.
+  const contentSample = `${paragraphText} ${words.join(' ')}`;
+  const hasChinese = /[\u4e00-\u9fff\u3400-\u4dbf]/.test(contentSample);
+  const hasEnglish = /[a-zA-Z]/.test(contentSample);
+  const showChineseOpts = hasChinese || !hasEnglish; // 廣東話 + 普通話
+  const showEnglishOpt = hasEnglish;                 // English
+
+  // Show review dialog first
+  if (showReviewDialog && words.length > 0) {
     return (
       <div className="page pre-dictation-page">
-        <button className="back-btn" onClick={() => navigate('/')}>Home</button>
-        <h1>Paragraph Dictation</h1>
+        <TopNavBar />
+        <h1>{pageTitle}</h1>
         <p className="list-name">{listName}</p>
 
         <div className="pre-start">
-          {hasParagraph ? (
-            <>
-              <p>A paragraph with <strong>{words.length} words</strong> will be read aloud.</p>
-              <div className="instructions-box">
-                <h3>How it works:</h3>
-                <ol>
-                  <li>Press <strong>Start</strong> to begin</li>
-                  <li>Listen to the paragraph being spoken naturally</li>
-                  <li>Press <strong>Pause</strong> when you need time to write</li>
-                  <li>Press <strong>Replay Last</strong> to hear the last part again</li>
-                  <li>Press <strong>Resume</strong> to continue listening</li>
-                  <li>Write everything you hear in the text box</li>
-                  <li>Press <strong>Submit</strong> when you're done</li>
-                </ol>
-              </div>
-            </>
-          ) : (
-            <>
-              <p>{words.length} words will be read aloud as a paragraph.</p>
-              <div className="instructions-box">
-                <h3>How it works:</h3>
-                <ol>
-                  <li>Press <strong>Start</strong> to begin</li>
-                  <li>Listen to the words being spoken</li>
-                  <li>Press <strong>Pause</strong> when you need time to write</li>
-                  <li>Press <strong>Replay Last</strong> to hear the last part again</li>
-                  <li>Press <strong>Resume</strong> to continue listening</li>
-                  <li>Write everything you hear in the text box</li>
-                  <li>Press <strong>Submit</strong> when you're done</li>
-                </ol>
-              </div>
-            </>
-          )}
-          <button className="btn btn-primary btn-large" onClick={handleStart}>
-            Start Dictation
+          <p>{t('pre.reviewPrompt')}</p>
+          <div className="action-buttons">
+            <button className="btn btn-primary btn-large" onClick={handleStartWithReview}>
+              {t('pre.reviewYes')}
+            </button>
+            <button className="btn btn-secondary btn-large" onClick={handleStartDirect}>
+              {t('pre.reviewNo')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show review content
+  if (showReview && words.length > 0) {
+    return (
+      <div className="page pre-dictation-page">
+        <TopNavBar />
+        <h1>{mode === 'paragraphs' ? t('pre.titleWriteParagraph') : t('pre.titleReviewParagraph')}</h1>
+        <p className="list-name">{listName}</p>
+
+        <div className="review-content">
+          <div className="paragraph-display">
+            {hasParagraph ? (
+              <p>{paragraphText}</p>
+            ) : (
+              <p>{words.join('、')}</p>
+            )}
+          </div>
+
+          <div className="language-selection">
+            <p className="language-label">{t('pre.langLabel')}</p>
+            <div className="language-options">
+              {showChineseOpts && (
+                <button
+                  className={`lang-btn ${readingLang === 'zh-HK' ? 'active' : ''}`}
+                  onClick={() => setReadingLang('zh-HK')}
+                >
+                  {t('lang.cantonese')}
+                </button>
+              )}
+              {showChineseOpts && (
+                <button
+                  className={`lang-btn ${readingLang === 'zh-CN' ? 'active' : ''}`}
+                  onClick={() => setReadingLang('zh-CN')}
+                >
+                  {t('lang.mandarin')}
+                </button>
+              )}
+              {showEnglishOpt && (
+                <button
+                  className={`lang-btn ${readingLang === 'en-US' ? 'active' : ''}`}
+                  onClick={() => setReadingLang('en-US')}
+                >
+                  {t('lang.english')}
+                </button>
+              )}
+            </div>
+            <button className="btn btn-secondary listen-btn" onClick={handlePreviewRead}>
+              <span className="ico">🔊</span> {t('pre.listen')}
+            </button>
+            <div className="speed-bar">
+              <SpeedButton />
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-large" onClick={handleStartAfterReview}>
+            {t('pre.startAfterReview')}
           </button>
         </div>
       </div>
@@ -184,18 +324,18 @@ export default function PreDictationPage() {
 
     return (
       <div className="page results-page">
-        <button className="back-btn" onClick={() => navigate('/')}>Home</button>
-        <h1>Results</h1>
+        <TopNavBar />
+        <h1>{t('pre.resultTitle')}</h1>
 
         <div className="score-display">
           <div className={`score-circle ${percentage >= 80 ? 'great' : percentage >= 50 ? 'good' : 'try-again'}`}>
             <span className="score-number">{percentage}%</span>
           </div>
-          <p>{comparison.score} out of {comparison.totalWords} words correct</p>
+          <p>{t('pre.resultScore', { score: comparison.score, total: comparison.totalWords })}</p>
         </div>
 
         <div className="paragraph-review">
-          <h3>Your Answer:</h3>
+          <h3>{t('pre.yourAnswer')}</h3>
           <div className="paragraph-comparison">
             {comparison.results.map((r, i) => (
               <span key={i} className={`word-result ${r.correct ? 'correct' : 'wrong'}`}>
@@ -206,10 +346,10 @@ export default function PreDictationPage() {
         </div>
 
         <div className="action-buttons">
-          <button className="btn btn-primary" onClick={() => navigate('/')}>Back to Home</button>
+          <button className="btn btn-primary" onClick={() => navigate('/home')}>{t('pre.backHome')}</button>
           {comparison.results.some(r => !r.correct) && (
             <button className="btn btn-secondary" onClick={() => navigate('/correction')}>
-              Practice Wrong Words
+              {t('pre.redoWrong')}
             </button>
           )}
         </div>
@@ -219,37 +359,71 @@ export default function PreDictationPage() {
 
   return (
     <div className="page pre-dictation-page">
-      <button className="back-btn" onClick={() => navigate('/')}>Home</button>
-      <h1>Paragraph Dictation</h1>
+      <TopNavBar />
+      <h1>{pageTitle}</h1>
+            
+      <div className="language-selection">
+        <p className="language-label">{t('pre.langLabel')}</p>
+        <div className="language-options">
+          {showChineseOpts && (
+            <button
+              className={`lang-btn ${readingLang === 'zh-HK' ? 'active' : ''}`}
+              onClick={() => setReadingLang('zh-HK')}
+            >
+              {t('lang.cantonese')}
+            </button>
+          )}
+          {showChineseOpts && (
+            <button
+              className={`lang-btn ${readingLang === 'zh-CN' ? 'active' : ''}`}
+              onClick={() => setReadingLang('zh-CN')}
+            >
+              {t('lang.mandarin')}
+            </button>
+          )}
+          {showEnglishOpt && (
+            <button
+              className={`lang-btn ${readingLang === 'en-US' ? 'active' : ''}`}
+              onClick={() => setReadingLang('en-US')}
+            >
+              {t('lang.english')}
+            </button>
+          )}
+        </div>
+      </div>
 
+      <div className="speed-bar">
+        <SpeedButton />
+      </div>
+      
       <div className="speech-controls">
         <div className={`speech-status ${isSpeaking ? 'speaking' : ''} ${isPaused ? 'paused' : ''}`}>
-          {isSpeaking && !isPaused ? '🔊 Speaking...' :
-           isPaused ? '⏸ Paused - Take your time!' :
-           '⏹ Not speaking'}
+          {isSpeaking && !isPaused ? <><span className="ico">🔊</span> {t('speech.reading')}</> :
+           isPaused ? <><span className="ico">⏸</span> {t('speech.paused')}</> :
+           <><span className="ico">⏹</span> {t('speech.notStarted')}</>}
         </div>
 
         <div className="control-buttons">
           {!isSpeaking && !isPaused ? (
             <button className="btn btn-primary" onClick={handleResume}>
-              ▶ Resume
+              <span className="ico">▶</span> {t('speech.resume')}
             </button>
           ) : isPaused ? (
             <>
               <button className="btn btn-primary" onClick={handleResume}>
-                ▶ Resume
+                <span className="ico">▶</span> {t('speech.resume')}
               </button>
               <button className="btn btn-accent" onClick={handleReplay}>
-                🔁 Replay Last
+                <span className="ico">🔁</span> {t('speech.replay')}
               </button>
             </>
           ) : (
             <button className="btn btn-warning" onClick={handlePause}>
-              ⏸ Pause
+               {t('speech.pause')}
             </button>
           )}
           <button className="btn btn-outline" onClick={() => controllerRef.current?.stop()}>
-            ⏹ Stop
+             {t('speech.stop')}
           </button>
         </div>
       </div>
@@ -258,7 +432,7 @@ export default function PreDictationPage() {
         <textarea
           value={userText}
           onChange={(e) => setUserText(e.target.value)}
-          placeholder="Type what you hear here..."
+          placeholder={t('speech.placeholder')}
           rows={8}
           autoFocus
         />
@@ -270,7 +444,7 @@ export default function PreDictationPage() {
           onClick={handleSubmit}
           disabled={!userText.trim()}
         >
-          Submit My Answer
+          {t('speech.submit')}
         </button>
       </div>
     </div>

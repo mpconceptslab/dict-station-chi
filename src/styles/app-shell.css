@@ -1,0 +1,1170 @@
+/* ============================================================================
+   App-shell design system (Phase J)
+   Loaded AFTER index.css so these rules refine/extend the base theme for the
+   new bottom-nav shell, handwriting grid, marking, correction, records and
+   upgrade surfaces. Touch-first: solid fills, 44px+ targets, :active states.
+   ========================================================================== */
+
+/* --- Bottom navigation ---------------------------------------------------- */
+.bottom-nav {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 2px;
+  width: 100%;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom) * 0);
+  position: relative;
+  overflow: visible;
+}
+
+.bottom-nav-tab {
+  flex: 1 1 0;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 2px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.bottom-nav-tab:active {
+  background: rgba(108, 99, 255, 0.08);
+}
+
+/* Active tab pops UP above the footer with rounded top */
+.bottom-nav-tab.active {
+  color: var(--primary);
+  background: var(--bg-card);
+  border-radius: 20px 20px 0 0;
+  top: -30px;
+  z-index: 10;
+  min-height: 82px;
+  padding-top: 8px;
+  box-shadow: 0 -2px 12px rgba(79, 195, 247, 0.15);
+}
+
+.bottom-nav-icon {
+  font-size: 1.35rem;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease;
+}
+
+/* Icon image for nav tabs — inactive 3x base size */
+.nav-icon-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  transition: transform 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+/* Active icon is 2x the inactive size */
+.bottom-nav-tab.active .nav-icon-img {
+  width: 72px;
+  height: 72px;
+}
+
+.bottom-nav-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transition: opacity 0.25s ease, font-size 0.25s ease, height 0.25s ease;
+}
+
+.bottom-nav-tab.active .bottom-nav-label {
+  opacity: 1;
+  height: auto;
+  font-size: 0.85rem;
+}
+
+/* English labels are wider than the 2-character Chinese ones, so shrink them
+   a little to keep all five tabs on one line without overflow. */
+[data-lang="en"] .bottom-nav-label {
+  font-size: 0.65rem;
+  letter-spacing: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-lang="en"] .bottom-nav-tab.active .bottom-nav-label {
+  font-size: 0.75rem;
+}
+
+/* --- Solid (non-hover) press feedback for touch --------------------------- */
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.96);
+}
+
+.btn-plain {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  min-height: 44px;
+}
+.btn-plain:active {
+  background: rgba(108, 99, 255, 0.08);
+}
+
+/* --- Handwriting grid (DictationPage + CorrectionPage) -------------------- */
+.hw-grid {
+  width: 100%;
+}
+
+.hw-grid-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.hw-cell {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  min-width: 56px;
+  border: 2px dashed var(--primary-light);
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hw-cell:active {
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.18);
+}
+
+.hw-cell.filled {
+  border-style: solid;
+  border-color: var(--primary);
+}
+
+.hw-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.hw-cell-index {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.hw-cell:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Faint cross-guide inside empty boxes to hint stroke placement */
+.hw-cell:not(.filled)::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  background:
+    linear-gradient(to right, transparent 49.5%, rgba(108, 99, 255, 0.12) 49.5%, rgba(108, 99, 255, 0.12) 50.5%, transparent 50.5%),
+    linear-gradient(to bottom, transparent 49.5%, rgba(108, 99, 255, 0.12) 49.5%, rgba(108, 99, 255, 0.12) 50.5%, transparent 50.5%);
+  pointer-events: none;
+}
+
+/* Enlarge-to-write modal */
+.hw-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 16px;
+}
+
+.hw-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  width: min(92vw, 420px);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hw-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+}
+
+.hw-modal-pad {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+  border: 2px solid var(--border);
+}
+
+.hw-modal-actions {
+  display: flex;
+  gap: 8px;
+}
+.hw-modal-actions .btn {
+  flex: 1;
+  min-height: 48px;
+}
+
+.hw-modal-clear-cell {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  min-height: 44px;
+}
+
+/* --- Dictation item actions ---------------------------------------------- */
+.hw-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.hw-item-actions .btn {
+  flex: 1;
+  min-height: 48px;
+}
+.hw-item-count {
+  font-weight: 700;
+  color: var(--text-light);
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Marking page --------------------------------------------------------- */
+.marking-page h1 {
+  text-align: center;
+}
+
+.marking-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin: 12px 0 16px;
+}
+
+.marking-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.marking-summary-text p {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Status badge (also reused on RecordsPage) */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--border);
+  color: var(--text-light);
+}
+.status-badge.ai-checked {
+  background: var(--success-light);
+  color: #2E7D32;
+}
+.status-badge.manual {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+.status-badge.failed {
+  background: var(--danger-light);
+  color: #C62828;
+}
+.status-badge.pending {
+  background: var(--warning-light);
+  color: #E65100;
+}
+
+.marking-notice {
+  background: var(--warning-light);
+  color: #8a5200;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.marking-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marking-item {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  border-left: 5px solid var(--border);
+}
+.marking-item.correct {
+  border-left-color: var(--success);
+}
+.marking-item.wrong {
+  border-left-color: var(--danger);
+}
+
+.marking-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 2px 0 8px;
+}
+
+.marking-index {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marking-target {
+  flex: 1;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: var(--brush-font);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.marking-verdict {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.marking-item.correct .marking-verdict {
+  color: var(--success);
+}
+.marking-item.wrong .marking-verdict {
+  color: var(--danger);
+}
+
+.marking-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.marking-cell {
+  position: relative;
+  width: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.marking-cell-img {
+  width: 62px;
+  height: 62px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.marking-cell-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.marking-cell.ok .marking-cell-img {
+  border-color: var(--success);
+}
+.marking-cell.no .marking-cell-img {
+  border-color: var(--danger);
+}
+.marking-cell.unk .marking-cell-img {
+  border-color: var(--warning);
+}
+
+.marking-cell-img .blank {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.marking-cell-mark {
+  position: absolute;
+  top: -6px;
+  right: -2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--text-muted);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+.marking-cell.ok .marking-cell-mark {
+  background: var(--success);
+}
+.marking-cell.no .marking-cell-mark {
+  background: var(--danger);
+}
+.marking-cell.unk .marking-cell-mark {
+  background: var(--warning);
+}
+
+.marking-cell-answer {
+  font-family: var(--brush-font);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.marking-typed {
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+.marking-typed em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.save-toast {
+  text-align: center;
+  color: var(--success);
+  font-weight: 700;
+  margin-top: 12px;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Zoom overlay (marking) ---------------------------------------------- */
+.zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+  padding: 16px;
+}
+.zoom-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  width: min(94vw, 520px);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.zoom-target {
+  font-family: var(--brush-font);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  word-break: break-word;
+}
+.zoom-cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+.zoom-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.zoom-cell-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  border: 3px solid var(--border);
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.zoom-cell-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.zoom-cell.ok .zoom-cell-img { border-color: var(--success); }
+.zoom-cell.no .zoom-cell-img { border-color: var(--danger); }
+.zoom-cell.unk .zoom-cell-img { border-color: var(--warning); }
+.zoom-cell-img .blank {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.zoom-cell-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.zoom-cell-answer {
+  font-family: var(--brush-font);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--success);
+}
+.zoom-typed {
+  font-size: 1.1rem;
+  color: var(--text-light);
+  text-align: center;
+}
+
+/* --- Records page: parent status view ------------------------------------ */
+.parent-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin: 24px auto;
+  max-width: 360px;
+  text-align: center;
+}
+.pin-input {
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
+  text-align: center;
+  width: 160px;
+  padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 52px;
+}
+.pin-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.parent-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.summary-stat {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.summary-num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.summary-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.badge-row .status-badge {
+  align-self: center;
+}
+.status-badge.ok {
+  background: var(--success-light);
+  color: #2E7D32;
+}
+.status-badge.warn {
+  background: var(--warning-light);
+  color: #E65100;
+}
+.status-badge.bad {
+  background: var(--danger-light);
+  color: #C62828;
+}
+
+/* --- Correction page extras ---------------------------------------------- */
+.correction-page h1 {
+  text-align: center;
+}
+.correction-word-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.practice-hint {
+  color: var(--text-light);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.correction-card .btn-primary {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+}
+
+/* --- Revision: English typing textarea override -------------------------- */
+textarea.english-typing-input {
+  width: 100%;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+  font-family: var(--font);
+  color: var(--text);
+  background: #fff;
+}
+textarea.english-typing-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* --- Dictation popup text roles ------------------------------------------ */
+.popup-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+.popup-subtitle {
+  font-size: 1rem;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+.popup-hint {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-weight: 600;
+}
+.checking-popup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+/* --- Upgrade modal + page ------------------------------------------------- */
+.upgrade-modal {
+  text-align: center;
+}
+.plan-compare,
+.plan-compare-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.plan-col {
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.plan-col h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.plan-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+.plan-col ul li::before {
+  content: '• ';
+  color: var(--primary);
+}
+.plan-free {
+  border-color: var(--border);
+}
+.plan-pro {
+  border-color: var(--primary);
+  background: linear-gradient(180deg, rgba(108, 99, 255, 0.06), transparent);
+  box-shadow: var(--shadow);
+}
+.plan-pro h3 {
+  color: var(--primary);
+}
+.plan-price {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.upgrade-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.upgrade-actions .btn {
+  min-height: 48px;
+}
+
+.upgrade-page h1 {
+  text-align: center;
+}
+.usage-now {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.usage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+.usage-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pro-thanks {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  text-align: center;
+  font-weight: 700;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+.checkout-note {
+  background: var(--warning-light);
+  color: #8a5200;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.promo-page {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin: 16px 0;
+}
+
+/* --- Global toast (replaces alert()) ------------------------------------- */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--dock-h, 72px) + 24px);
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(33, 33, 33, 0.94);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  z-index: 2000;
+  max-width: 88vw;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.app-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.app-toast.error {
+  background: rgba(198, 40, 40, 0.96);
+}
+.app-toast.success {
+  background: rgba(46, 125, 50, 0.96);
+}
+
+/* --- Small-screen tuning -------------------------------------------------- */
+@media (max-width: 480px) {
+  .hw-cell {
+    width: 60px;
+    height: 60px;
+  }
+  .marking-summary {
+    flex-direction: column;
+    text-align: center;
+  }
+  .marking-summary-text {
+    align-items: center;
+  }
+  .plan-compare,
+  .plan-compare-page {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   Fun light theme (Phase 2) — bright, playful, chunky, bouncy.
+   Every rule is gated to [data-theme="light"] so the dark "words-only" theme
+   stays flat and calm. Touch-first: solid fills, no hover-only affordances.
+   ========================================================================== */
+
+/* Soft pastel backdrop behind every page. */
+[data-theme="light"] .page {
+  background: var(--bg-grad);
+}
+
+/* Rounded display face + friendly colors for headings. */
+[data-theme="light"] h1,
+[data-theme="light"] h2,
+[data-theme="light"] .page-title {
+  font-family: var(--display-font);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+[data-theme="light"] h1,
+[data-theme="light"] .page-title {
+  color: var(--c-purple);
+}
+[data-theme="light"] h2 {
+  color: var(--c-blue);
+}
+
+/* Playful brand logo: keep the chunky "sign" look but brighten the palette. */
+[data-theme="light"] .app-logo {
+  font-family: var(--display-font);
+  color: #6B3E12;
+  background: linear-gradient(135deg, var(--c-yellow), #FFE9A8);
+  border-color: var(--c-orange);
+  border-radius: var(--radius-lg);
+  animation: pop 0.4s ease-out both;
+}
+[data-theme="light"] .app-logo-img {
+  animation: pop 0.4s ease-out both;
+}
+
+/* Chunky pill buttons with a solid "3D" bottom edge + bouncy press. */
+[data-theme="light"] .btn {
+  border-radius: 999px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+[data-theme="light"] .btn-primary {
+  background: linear-gradient(100deg, var(--c-red) 0%, var(--c-orange) 24%, var(--c-green) 50%, var(--c-blue) 74%, var(--c-purple) 100%);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 4px 0 rgba(74, 42, 138, 0.5);
+}
+[data-theme="light"] .btn-secondary {
+  box-shadow: 0 4px 0 #E14E80;
+}
+[data-theme="light"] .btn-danger {
+  box-shadow: 0 4px 0 #D63A3F;
+}
+[data-theme="light"] .btn-warning {
+  box-shadow: 0 4px 0 #E07C00;
+}
+[data-theme="light"] .btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+  filter: brightness(0.98);
+}
+[data-theme="light"] .btn-primary:active:not(:disabled) {
+  box-shadow: 0 1px 0 rgba(74, 42, 138, 0.5);
+}
+[data-theme="light"] .btn-secondary:active:not(:disabled) {
+  box-shadow: 0 1px 0 #E14E80;
+}
+[data-theme="light"] .btn-danger:active:not(:disabled) {
+  box-shadow: 0 1px 0 #D63A3F;
+}
+/* Small buttons keep a lighter edge so they don't look oversized. */
+[data-theme="light"] .btn-small {
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Rainbow home CTAs — each big button its own bright colour (light theme). */
+[data-theme="light"] .new-range-btn {
+  background: var(--c-blue);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 0 #2A6AD6;
+}
+[data-theme="light"] .new-range-btn:nth-child(1) { background: var(--c-red);    box-shadow: 0 4px 0 #D63A3F; }
+[data-theme="light"] .new-range-btn:nth-child(2) { background: var(--c-orange); box-shadow: 0 4px 0 #E07C00; }
+[data-theme="light"] .new-range-btn:nth-child(3) { background: var(--c-green);  box-shadow: 0 4px 0 #1E9C90; }
+[data-theme="light"] .new-range-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* Colorful per-tab accents on the bottom nav (each tab its own color). */
+[data-theme="light"] .bottom-nav {
+  border-top: none;
+  box-shadow: 0 -2px 12px rgba(80, 60, 140, 0.08);
+}
+[data-theme="light"] .bottom-nav-tab.active {
+  font-weight: 700;
+  background: var(--bg-card);
+}
+[data-theme="light"] .bottom-nav-tab:nth-child(1).active { color: var(--c-red); }
+[data-theme="light"] .bottom-nav-tab:nth-child(2).active { color: var(--c-blue); }
+[data-theme="light"] .bottom-nav-tab:nth-child(3).active { color: var(--c-green); }
+[data-theme="light"] .bottom-nav-tab:nth-child(4).active { color: var(--c-purple); }
+[data-theme="light"] .bottom-nav-tab:nth-child(5).active { color: var(--c-pink); }
+[data-theme="light"] .bottom-nav-tab.active .bottom-nav-icon {
+  animation: bounce 0.42s ease;
+}
+
+/* Chunky settings sections. */
+[data-theme="light"] .settings-section {
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6px 18px rgba(120, 100, 180, 0.1);
+}
+
+/* === Playful animations (light theme; reused across celebrations) === */
+@keyframes pop {
+  0%   { transform: scale(0.9); opacity: 0; }
+  60%  { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  30%      { transform: translateY(-5px) scale(1.08); }
+  60%      { transform: translateY(0) scale(1); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-6deg); }
+  75%      { transform: rotate(6deg); }
+}
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="light"] .app-logo,
+  [data-theme="light"] .app-logo-img,
+  [data-theme="light"] .bottom-nav-tab.active .bottom-nav-icon {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   Dark theme flatten (Phase 5a) — undo the playful light styling so dark mode
+   stays calm, flat and "words only". Most light rules are already gated to
+   [data-theme="light"]; this only neutralizes base rules that are not.
+   ========================================================================== */
+[data-theme="dark"] .app-logo {
+  font-family: var(--font);
+  color: var(--text);
+  background: none;
+  border-color: var(--border);
+  box-shadow: none;
+  text-shadow: none;
+  letter-spacing: 2px;
+  animation: none;
+}
+/* The logo artwork carries white areas (the notepad page); on dark mode sit it
+   on a soft white card so those areas read as paper instead of holes. */
+[data-theme="dark"] .app-logo-img {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  width: min(72%, 380px);
+  filter: none;
+  animation: none;
+}
+[data-theme="dark"] .hero-section::before,
+[data-theme="dark"] .hero-section::after {
+  display: none;
+}
+
+/* --- Confetti canvas (celebrations; hidden in dark mode) ------------------- */
+.confetti-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 3000;
+}
+[data-theme="dark"] .confetti-canvas {
+  display: none;
+}
+
+/* --- Top-bar theme toggle -------------------------------------------------- */
+/* Light: a round moon button matching the other nav buttons (the shared
+   [data-theme="light"] .btn pill rule keeps it circular at 48x48). Dark: it
+   becomes a pill so the word 明亮 fits (the .ico mechanism swaps 🌙 -> 明亮). */
+.btn-theme {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--primary);
+  color: #fff;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.btn-theme:active {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+[data-theme="dark"] .btn-theme {
+  width: auto;
+  min-width: 48px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 1rem;
+}
+
+/* Language toggle — replaces the old Settings shortcut in the top bar.
+   Light: a round blue button matching the other nav buttons. Dark: a pill so
+   the target-language word (Eng / 中文) fits, mirroring .btn-theme. */
+.btn-lang {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-lang:active {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+.btn-lang-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+[data-theme="dark"] .btn-lang {
+  width: auto;
+  min-width: 48px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+/* Celebratory pop on a great score circle (light theme). */
+[data-theme="light"] .score-circle.great {
+  animation: pop 0.5s ease-out both;
+}

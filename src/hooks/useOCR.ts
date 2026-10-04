@@ -1,113 +1,64 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { createWorker } from 'tesseract.js';
 
-// Use tesseract.js from CDN to avoid Google Drive sync issues
-const TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-
-let tesseractPromise: Promise<any> | null = null;
-
-function loadTesseract(): Promise<any> {
-  if (!tesseractPromise) {
-    tesseractPromise = new Promise((resolve, reject) => {
-      if ((window as any).Tesseract) {
-        resolve((window as any).Tesseract);
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = TESSERACT_CDN;
-      script.onload = () => {
-        if ((window as any).Tesseract) {
-          resolve((window as any).Tesseract);
-        } else {
-          reject(new Error('Tesseract.js loaded but global not found'));
-        }
-      };
-      script.onerror = () => reject(new Error('Failed to load Tesseract.js from CDN'));
-      document.head.appendChild(script);
-    });
-  }
-  return tesseractPromise;
-}
-
-function fileToDataUrl(file: File | Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Failed to read image file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Map language selection to Tesseract language codes
- * 'eng' = English
- * 'chi_sim' = Simplified Chinese
- * 'chi_tra' = Traditional Chinese
- * 'eng+chi_sim' = English + Simplified Chinese (multi-language)
- * 'eng+chi_tra' = English + Traditional Chinese (multi-language)
- */
-function getTesseractLang(lang: string): string {
-  switch (lang) {
-    case 'chinese': return 'chi_sim';
-    case 'chinese_trad': return 'chi_tra';
-    case 'english_chinese': return 'eng+chi_sim';
-    case 'english_chinese_trad': return 'eng+chi_tra';
-    default: return 'eng';
-  }
-}
+type WorkerRef = Awaited<ReturnType<typeof createWorker>> | null;
 
 export function useOCR() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const workerRef = useRef<WorkerRef>(null);
+  const currentLangRef = useRef<string>('');
+
+  const getWorker = useCallback(async (language: string): Promise<WorkerRef> => {
+    // Map language to Tesseract language code
+    let langCode = 'eng';
+    if (language === 'chinese' || language === 'chinese_trad') {
+      langCode = 'chi_tra'; // Traditional Chinese
+    } else if (language === 'english_chinese' || language === 'english_chinese_trad') {
+      langCode = 'eng+chi_tra';
+    }
+
+    // Only reuse worker if same language
+    if (workerRef.current && currentLangRef.current === langCode) {
+      return workerRef.current;
+    }
+
+    // Terminate old worker if exists
+    if (workerRef.current) {
+      await workerRef.current.terminate();
+      workerRef.current = null;
+    }
+
+    console.log('OCR: Creating worker for language:', langCode);
+    const worker = await createWorker(langCode);
+    workerRef.current = worker;
+    currentLangRef.current = langCode;
+    return worker;
+  }, []);
 
   const recognizeText = useCallback(async (
     imageSource: string | File,
     language: string = 'english'
   ): Promise<string> => {
     setIsProcessing(true);
-    setProgress(0);
+    setProgress(10);
     setError(null);
 
     try {
-      const Tesseract = await loadTesseract();
+      const worker = await getWorker(language);
+      if (!worker) throw new Error('Failed to create OCR worker');
 
-      let imageInput: string;
-      if (typeof imageSource !== 'string') {
-        imageInput = await fileToDataUrl(imageSource);
-      } else {
-        imageInput = imageSource;
-      }
+      setProgress(30);
+      console.log('OCR: Using Tesseract.js for language:', language);
 
-      const langCode = getTesseractLang(language);
-      console.log('OCR: Using language code:', langCode, 'for selection:', language);
-
-      // Use Tesseract.recognize() directly - handles worker lifecycle internally
-      const recognizePromise = Tesseract.recognize(imageInput, langCode, {
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
-        logger: (m: any) => {
-          console.log('OCR progress:', m.status, Math.round(m.progress * 100));
-          if (m.status === 'loading tesseract core' || 
-              m.status === 'initializing tesseract' ||
-              m.status === 'loading language traineddata' ||
-              m.status === 'initializing api' ||
-              m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
-
-      // Add 120 second timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('OCR timeout: Language data download took too long. Try again.')), 120000);
-      });
-
-      const { data } = await Promise.race([recognizePromise, timeoutPromise]);
-      const text = data.text;
-      console.log('OCR: Extracted text length:', text.length, 'first 100 chars:', text.substring(0, 100));
+      const { data: { text } } = await worker.recognize(imageSource);
+      
+      setProgress(100);
+      console.log('OCR: Extracted text:', text.trim());
 
       setIsProcessing(false);
-      setProgress(100);
-      return text;
+      return text.trim();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'OCR processing failed';
       setError(message);
@@ -115,7 +66,7 @@ export function useOCR() {
       console.error('OCR Error:', err);
       throw err;
     }
-  }, []);
+  }, [getWorker]);
 
   return { recognizeText, isProcessing, progress, error };
 }

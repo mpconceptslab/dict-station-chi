@@ -1,14 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-HK" data-theme="light" data-font="medium">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#6C63FF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <link rel="manifest" href="/manifest.json" />
-    <title>Spelling Buddy - Dictation Practice</title>
+    <meta name="apple-mobile-web-app-title" content="默書伙伴" />
+    <!-- manifest is injected by vite-plugin-pwa -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/lxgwwenkai-regular.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/lxgwwenkai-bold.css" />
+    <title>默書伙伴 · Dictation Buddy</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3716389310971009" crossorigin="anonymous"></script>
+    <!-- Apply saved theme + font scale + language before first paint (no flash). -->
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+          var font = localStorage.getItem('font_scale');
+          if (font !== 'small' && font !== 'large') font = 'medium';
+          root.setAttribute('data-theme', theme);
+          root.setAttribute('data-font', font);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#0B1E3A' : '#6C63FF');
+          // Language: stored choice, else auto-detect from the browser.
+          var lang = localStorage.getItem('lang');
+          if (lang !== 'zh' && lang !== 'en') {
+            lang = ((navigator.language || '').toLowerCase().indexOf('zh') === 0) ? 'zh' : 'en';
+          }
+          root.setAttribute('lang', lang === 'zh' ? 'zh-HK' : 'en');
+          root.setAttribute('data-lang', lang);
+          document.title = lang === 'zh' ? '默書伙伴' : 'Dictation Buddy';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
