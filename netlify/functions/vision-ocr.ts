@@ -58,7 +58,7 @@ export default async function handler(req: Request, context: { ip?: string }) {
     requests: [
       {
         image: { content: body.image },
-        features: [{ type: 'TEXT_DETECTION' }],
+        features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
         imageContext: { languageHints: body.langHints || ['zh-HK', 'zh-TW', 'en'] },
       },
     ],
