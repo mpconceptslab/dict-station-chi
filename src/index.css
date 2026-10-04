@@ -1711,6 +1711,152 @@ textarea {
   box-shadow: var(--shadow-lg);
 }
 
+/* Word card style display for correct answer */
+.word-card-display {
+  position: relative;
+  background: linear-gradient(135deg, var(--success-light) 0%, #e8f5e9 100%);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 2px solid var(--success);
+}
+
+.enlarge-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow);
+}
+
+.enlarge-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--primary);
+}
+
+.word-card-content {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.word-card-text {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 12px 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.word-card-text .wrong-char {
+  position: relative;
+  color: var(--danger);
+  display: inline-block;
+}
+
+.word-card-text .wrong-char::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  border: 3px solid var(--danger);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Enlarged modal */
+.enlarged-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+
+.enlarged-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  max-width: 90%;
+  max-height: 90%;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.close-enlarge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+
+.close-enlarge:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.enlarged-word {
+  font-size: 5rem;
+  font-weight: 700;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.enlarged-word .wrong-char {
+  position: relative;
+  color: var(--danger);
+}
+
+.enlarged-word .wrong-char::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%;
+  height: 120%;
+  border: 4px solid var(--danger);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .previous-attempts {
   margin: 20px 0;
   padding: 16px;

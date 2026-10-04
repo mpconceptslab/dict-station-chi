@@ -19,6 +19,25 @@ function makeCells(target: string): HandwritingCell[] {
   return chars.map((ch, i) => ({ charIndex: i, targetChar: ch }));
 }
 
+/** Identify which characters in the correct answer were written incorrectly */
+function identifyWrongChars(correct: string, userAnswer: string): Set<number> {
+  const wrongIndices = new Set<number>();
+  const correctChars = [...correct];
+  const userChars = [...userAnswer];
+  
+  // Compare character by character
+  for (let i = 0; i < correctChars.length; i++) {
+    if (i >= userChars.length || correctChars[i] !== userChars[i]) {
+      // Only mark writable characters as wrong
+      if (WRITABLE.test(correctChars[i])) {
+        wrongIndices.add(i);
+      }
+    }
+  }
+  
+  return wrongIndices;
+}
+
 function loadImg(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const im = new Image();
@@ -59,6 +78,8 @@ export default function CorrectionPage() {
   const [showStroke, setShowStroke] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [wrongCharIndices, setWrongCharIndices] = useState<Set<number>>(new Set());
+  const [enlarged, setEnlarged] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -84,9 +105,18 @@ export default function CorrectionPage() {
   useEffect(() => {
     if (!correction) return;
     const word = correction.wrongWords[currentWordIndex]?.word || '';
-    setAttemptCells(makeCells(word));
+    const userAnswer = correction.wrongWords[currentWordIndex]?.userAnswer || '';
+    
+    // Identify which characters are wrong
+    const wrongIndices = identifyWrongChars(word, userAnswer);
+    setWrongCharIndices(wrongIndices);
+    
+    // Only create handwriting cells for wrong characters
+    const wrongChars = [...word].filter((ch, i) => wrongIndices.has(i) && WRITABLE.test(ch));
+    setAttemptCells(wrongChars.map((ch, i) => ({ charIndex: i, targetChar: ch })));
     setTypedAttempt('');
     setShowStroke(false);
+    setEnlarged(false);
   }, [currentWordIndex, correction]);
 
   function advanceOrFinish(updated: CorrectionSession) {
@@ -205,11 +235,21 @@ export default function CorrectionPage() {
       </div>
 
       <div className="correction-card">
-        <div className="correct-answer-display">
-          <p className="label">{t('correction.correctLabel')}</p>
-          <p className="correct-answer">
-            {isCJK ? [...targetWord].map((ch, i) => <HanziGlyph key={i} char={ch} />) : targetWord}
-          </p>
+        {/* Word card style correct answer display */}
+        <div className="word-card-display">
+          <button className="enlarge-btn" onClick={() => setEnlarged(true)} aria-label="放大">
+            <span className="ico">🔍</span>
+          </button>
+          <div className="word-card-content">
+            <p className="label">{t('correction.correctLabel')}</p>
+            <p className="word-card-text">
+              {isCJK ? [...targetWord].map((ch, i) => (
+                <span key={i} className={wrongCharIndices.has(i) ? 'wrong-char' : ''}>
+                  <HanziGlyph char={ch} />
+                </span>
+              )) : targetWord}
+            </p>
+          </div>
           <div className="correction-word-actions">
             <button className="btn btn-outline speak-btn-small" onClick={() => speak(targetWord, 0.5)}>
               <span className="ico">🔊</span> {t('correction.listen')}
@@ -221,6 +261,24 @@ export default function CorrectionPage() {
             )}
           </div>
         </div>
+
+        {/* Enlarged modal */}
+        {enlarged && (
+          <div className="enlarged-modal" onClick={() => setEnlarged(false)}>
+            <div className="enlarged-content" onClick={(e) => e.stopPropagation()}>
+              <button className="close-enlarge" onClick={() => setEnlarged(false)}>
+                <span className="ico">✕</span>
+              </button>
+              <p className="enlarged-word">
+                {isCJK ? [...targetWord].map((ch, i) => (
+                  <span key={i} className={wrongCharIndices.has(i) ? 'wrong-char' : ''}>
+                    <HanziGlyph char={ch} />
+                  </span>
+                )) : targetWord}
+              </p>
+            </div>
+          </div>
+        )}
 
         {showStroke && isCJK && (
           <StrokeOrderPanel
