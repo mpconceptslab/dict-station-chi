@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setTier, isPro } from '../utils/limits';
 import { usePrefs } from '../context/PrefsContext';
+import { redeemPromoCode } from '../utils/storage';
 
 const PRO_PROMO_CODES = ['DICTPRO', 'PRO2025', 'FAMILY'];
 
@@ -25,15 +26,27 @@ export default function UpgradeModal({ onClose, reason }: UpgradeModalProps) {
   const pro = isPro();
 
   function redeem() {
-    const ok = PRO_PROMO_CODES.includes(code.trim().toUpperCase());
-    if (ok) {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) return;
+
+    // Check if it's a PRO code first
+    if (PRO_PROMO_CODES.includes(trimmedCode.toUpperCase())) {
       setTier('pro');
       setMsg(<>{t('upgrade.unlocked')} <span className="ico">🎉</span></>);
       setMsgType('success');
+      setCode('');
       setTimeout(() => onClose(), 1500);
     } else {
-      setMsg(t('upgrade.invalidCode'));
-      setMsgType('error');
+      // Try credit promo codes (free10, free20, etc.)
+      const result = redeemPromoCode(trimmedCode);
+      if (result.success) {
+        setMsg(result.message);
+        setMsgType('success');
+        setCode('');
+      } else {
+        setMsg(t('upgrade.invalidCode'));
+        setMsgType('error');
+      }
     }
   }
 

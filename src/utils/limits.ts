@@ -117,9 +117,22 @@ function recordEvent(logKey: string): void {
   window.dispatchEvent(new Event('usage-changed'));
 }
 
+/* ── Bonus allowance (from promo codes) ─────────────────────────────────── */
+function getBonus(logKey: string): number {
+  const raw = localStorage.getItem(scopedKey(`${logKey}_bonus`));
+  return raw ? parseInt(raw, 10) : 0;
+}
+function addBonus(logKey: string, amount: number): void {
+  const current = getBonus(logKey);
+  localStorage.setItem(scopedKey(`${logKey}_bonus`), (current + amount).toString());
+  window.dispatchEvent(new Event('usage-changed'));
+}
+
 /* ── Syllabus scanning allowance ─────────────────────────────────────────── */
 export function getScanAllowance(): Allowance {
-  return buildAllowance('scan_log', FREE_SCAN_LIMIT, PRO_SCAN_LIMIT);
+  const base = buildAllowance('scan_log', FREE_SCAN_LIMIT, PRO_SCAN_LIMIT);
+  const bonus = getBonus('scan_log');
+  return { ...base, limit: base.limit + bonus, remaining: Math.max(0, base.limit + bonus - base.used) };
 }
 export function canScan(): boolean {
   return getScanAllowance().remaining > 0;
@@ -127,16 +140,24 @@ export function canScan(): boolean {
 export function recordScan(): void {
   recordEvent('scan_log');
 }
+export function addBonusScans(amount: number): void {
+  addBonus('scan_log', amount);
+}
 
 /* ── AI dictation checking allowance ─────────────────────────────────────── */
 export function getCheckAllowance(): Allowance {
-  return buildAllowance('check_log', FREE_CHECK_LIMIT, PRO_CHECK_LIMIT);
+  const base = buildAllowance('check_log', FREE_CHECK_LIMIT, PRO_CHECK_LIMIT);
+  const bonus = getBonus('check_log');
+  return { ...base, limit: base.limit + bonus, remaining: Math.max(0, base.limit + bonus - base.used) };
 }
 export function canCheck(): boolean {
   return getCheckAllowance().remaining > 0;
 }
 export function recordCheck(): void {
   recordEvent('check_log');
+}
+export function addBonusChecks(amount: number): void {
+  addBonus('check_log', amount);
 }
 
 /* ── Presentation helpers ────────────────────────────────────────────────── */

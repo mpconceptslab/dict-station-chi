@@ -532,11 +532,16 @@ export function validatePromoCode(code: string): { valid: boolean; credits: numb
   return { valid: false, credits: 0 };
 }
 
+import { addBonusScans, addBonusChecks } from './limits';
+
 export function redeemPromoCode(code: string): { success: boolean; credits: number; message: string } {
   const result = validatePromoCode(code);
   if (result.valid) {
     const newTotal = addCredits(result.credits);
-    return { success: true, credits: result.credits, message: `已加入 ${result.credits} 次！目前剩餘 ${newTotal} 次` };
+    // Also add bonus scans and checks (1 scan per credit, 1 check per 4 credits)
+    addBonusScans(result.credits);
+    addBonusChecks(Math.max(1, Math.floor(result.credits / 4)));
+    return { success: true, credits: result.credits, message: `已加入 ${result.credits} 次掃描 + ${Math.max(1, Math.floor(result.credits / 4))} 次AI檢查！` };
   }
   return { success: false, credits: 0, message: '無效的推廣碼' };
 }
