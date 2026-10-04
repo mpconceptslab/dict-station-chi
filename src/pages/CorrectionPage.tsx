@@ -234,6 +234,21 @@ export default function CorrectionPage() {
           />
         )}
 
+        {/* Show previous practice attempts */}
+        {currentRound && currentRound.images && currentRound.images.length > 0 && (
+          <div className="previous-attempts">
+            <p className="label">之前的練習：</p>
+            <div className="attempts-grid">
+              {currentRound.images.map((img, idx) => (
+                <div key={idx} className="attempt-thumb">
+                  <img src={img} alt={`第 ${idx + 1} 次`} />
+                  <span className="attempt-num">{idx + 1}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="practice-input">
           <p className="practice-count">
             {t('correction.practice', { done: attemptsDone, total: REQUIRED_PRACTICE_COUNT })}
