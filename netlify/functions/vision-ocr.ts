@@ -82,6 +82,8 @@ export default async function handler(req: Request, context: { ip?: string }) {
 
   const resp = data?.responses?.[0];
   const symbols: SymbolOut[] = [];
+  const imgW = body.width || 1;
+  const imgH = body.height || 1;
 
   // Preferred path: per-symbol bounding boxes (normalised 0..1).
   const pages = resp?.fullTextAnnotation?.pages || [];
@@ -94,8 +96,8 @@ export default async function handler(req: Request, context: { ip?: string }) {
             if (v && v.length === 4) {
               symbols.push({
                 text: sym.text || '',
-                cx: (v[0].x + v[2].x) / 2,
-                cy: (v[0].y + v[2].y) / 2,
+                cx: (v[0].x + v[2].x) / 2 / imgW,
+                cy: (v[0].y + v[2].y) / 2 / imgH,
               });
             }
           }
