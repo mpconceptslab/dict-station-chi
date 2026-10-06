@@ -49,7 +49,7 @@ export default function BottomNavBar() {
             aria-current={active ? 'page' : undefined}
           >
             <span className="bottom-nav-icon" aria-hidden="true">
-              {tab.icon.startsWith('data:') || tab.icon.includes('/nav-icons/') ? (
+              {tab.icon.startsWith('data:') || tab.icon.includes('/') || tab.icon.includes('assets') ? (
                 <img src={tab.icon} alt="" className="nav-icon-img" />
               ) : (
                 <span className="ico">{tab.icon}</span>
