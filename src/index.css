@@ -95,6 +95,43 @@
   display: none !important;
 }
 
+/* Dark mode button styles - solid fills for touch-first UI */
+[data-theme="dark"] .btn {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 0 var(--primary-dark);
+}
+[data-theme="dark"] .btn-primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 0 var(--primary-dark);
+}
+[data-theme="dark"] .btn-secondary {
+  background: var(--secondary);
+  color: white;
+  box-shadow: 0 2px 0 #5a7a9e;
+}
+[data-theme="dark"] .btn-outline {
+  background: var(--primary-light);
+  color: white;
+  border: 2px solid var(--primary);
+  box-shadow: 0 2px 0 var(--primary-dark);
+}
+[data-theme="dark"] .btn-danger {
+  background: var(--danger);
+  color: white;
+  box-shadow: 0 2px 0 #b84a5f;
+}
+[data-theme="dark"] .btn-warning {
+  background: var(--warning);
+  color: white;
+  box-shadow: 0 2px 0 #b8862e;
+}
+[data-theme="dark"] .btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--primary-dark);
+}
+
 /* === Reset & Base === */
 * {
   margin: 0;
